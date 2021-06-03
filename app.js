@@ -9,11 +9,11 @@ app.use(express.urlencoded({
   extended: true
 }));
 
-var conexion = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'nodejs',
+var conexion = mySql.createConnection({
+    host: 'wo46.wiroos.host', //no se si esto esta correcto, porque yo siempre trabajo con localhost en el mismo servidor
+    user: 'randazzo_tp',
+    password: 'UTNgrupo13',
+    database: 'randazzo_biblioteca',
 });
 
 conexion.connect((error) => {
