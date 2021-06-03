@@ -24,6 +24,8 @@ conexion.connect((error) => {
 
 const qy = util.promisify(conexion.query).bind(conexion);
 const Querys = require('./querys.model');
+const Tools = require('./check.common');
+const Models = require('./models');
 
 /*
   PERSONAS API
@@ -52,22 +54,20 @@ app.post('/persona', async (req, res) => {
   try {
 
     // Email mandatory
-    if (!req.body.email) {
-      throw new Error('Falta enviar el email');
-    }
-    
+    Tools.PersonaTools.checkEmail(req);
+
     // Check if email is in use
     const exists = await qy(Querys.PersonaByEmail, [(req.body.email).toLowerCase()]);
     if (exists.length > 0) {
       throw new Error('Email en uso');
     }
 
-    const persona = {
+    const persona = new Models.Persona({
       "nombre": req.body.nombre,
       "apellido": req.body.apellido,
       "email": req.body.email,
       "alias": req.body.alias
-    }
+    });
 
     const addPersona = await qy(Querys.PersonaADD, [
       persona.nombre, persona.apellido, (persona.email).toLowerCase(), persona.alias
@@ -83,15 +83,9 @@ app.post('/persona', async (req, res) => {
 app.put('/persona', async (req, res) => {
   try {
 
-    // Check id
-    if (!req.body.id) {
-      throw new Error('Falta ID para update');
-    }
-
-    // Email mandatory
-    if (!req.body.email) {
-      throw new Error('Falta EMAIL para update');
-    }
+    // Check ID & EMAIL
+    await Tools.PersonaTools.checkID(req);
+    await Tools.PersonaTools.checkEmail(req);
     
     // Check if email is in use
     const existsEmail = await qy(Querys.PersonaByEmail, [(req.body.email).toLowerCase()]);
@@ -105,13 +99,13 @@ app.put('/persona', async (req, res) => {
       throw new Error('Persona NO existe');
     }
 
-    const persona = {
+    const persona = new Models.Persona({
       "id": req.body.id,
       "nombre": req.body.nombre,
       "apellido": req.body.apellido,
       "email": req.body.email,
       "alias": req.body.alias
-    }
+    });
 
     const addPersona = await qy(Querys.PersonaUpdate, [
       persona.nombre, persona.apellido, (persona.email).toLowerCase(),
@@ -119,6 +113,16 @@ app.put('/persona', async (req, res) => {
     ]);
     res.send( persona );
 
+  } catch (error) {
+    console.log("🚀 ~ error", error.message);
+    res.status(500).send({ 'ERROR': error.message })
+  }
+});
+
+app.delete('/persona/:id', async (req, res) => {
+  try {
+    console.log('falta delete');
+    res.send({ msg: 'OK' })
   } catch (error) {
     console.log("🚀 ~ error", error.message);
     res.status(500).send({ 'ERROR': error.message })
