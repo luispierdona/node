@@ -74,8 +74,7 @@ app.post('/persona', async (req, res) => {
       "nombre": req.body.nombre,
       "apellido": req.body.apellido,
       "email": req.body.email,
-      "alias": req.body.alias,
-      "activo": '1',
+      "alias": req.body.alias
     });
 
     const addPersona = await qy(Querys.PersonaADD, [
