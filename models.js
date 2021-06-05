@@ -8,21 +8,26 @@ const Persona = function (persona) {
   this.activo = persona.activo;
 };
 
-const GeneroLibro = function (genero) {
-  this.id = genero.id;
-  // this.accion = 'ACCION';
-  // this.terror = 'TERROR';
+const Categoria = function (categoria) {
+  this.id = categoria.id;
+  this.nombre = categoria.nombre;
 }
+
+const Genero = Object.freeze({
+  Terror: 'Terror',
+  Accion: 'Acción',
+  Other: 'other',
+});
 
 const Libro = function (libro) {
   this.id = libro.id;
   this.nombre = libro.nombre;
-  this.description = libro.description;
-  this.genero = GeneroLibro;
-  this.personaID = libro.personaID;
+  this.descripcion = libro.descripcion;
+  this.categoria_id = libro.categoria_id;
+  this.persona_id = libro.persona_id;
 }
 
 module.exports.Persona = Persona;
-module.exports.GeneroLibro = GeneroLibro;
+module.exports.Categoria = Categoria;
 module.exports.Libro = Libro;
 
