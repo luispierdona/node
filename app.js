@@ -29,9 +29,9 @@ conexion.connect((error) => {
 });
 
 const qy = util.promisify(conexion.query).bind(conexion);
-const Querys = require('./querys.model');
-const Tools = require('./check.common');
-const Models = require('./models');
+const querys = require('./querys.model');
+const tools = require('./check.common');
+const models = require('./models');
 
 /*
 -------------------------------------------
@@ -40,7 +40,7 @@ const Models = require('./models');
 */
 app.get('/personas', async (req, res) => {
   try {
-    const respuesta = await qy(Querys.Personas);
+    const respuesta = await qy(querys.Personas);
     res.send({ data: respuesta });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -50,7 +50,7 @@ app.get('/personas', async (req, res) => {
 
 app.get('/persona/:id', async (req, res) => {
   try {
-    const respuesta = await qy(Querys.PersonaById, [req.params.id]);
+    const respuesta = await qy(querys.PersonaById, [req.params.id]);
     res.send({ data: respuesta });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -62,24 +62,26 @@ app.post('/persona', async (req, res) => {
   try {
 
     // Email mandatory
-    Tools.PersonaTools.checkEmail(req);
+    tools.PersonaTools.checkEmail(req);
 
     // Check if email is in use
-    const exists = await qy(Querys.PersonaByEmail, [(req.body.email).toLowerCase()]);
+    const exists = await qy(querys.PersonaByEmail, [(req.body.email).toLowerCase()]);
     if (exists.length > 0) {
       throw new Error('Email en uso');
     }
 
-    const persona = new Models.Persona({
+    const persona = new models.Persona({
       "nombre": req.body.nombre,
       "apellido": req.body.apellido,
       "email": req.body.email,
       "alias": req.body.alias
     });
 
-    const addPersona = await qy(Querys.PersonaADD, [
+    const addPersona = await qy(querys.PersonaADD, [
       persona.nombre, persona.apellido, (persona.email).toLowerCase(), persona.alias
     ]);
+
+    persona.id = addPersona.insertId;
     res.send(persona);
 
   } catch (error) {
@@ -92,22 +94,22 @@ app.put('/persona', async (req, res) => {
   try {
 
     // Check ID & EMAIL
-    await Tools.PersonaTools.checkID(req);
-    await Tools.PersonaTools.checkEmail(req);
+    await tools.PersonaTools.checkID(req);
+    await tools.PersonaTools.checkEmail(req);
 
     // Check if email is in use
-    const existsEmail = await qy(Querys.PersonaByEmail, [(req.body.email).toLowerCase()]);
+    const existsEmail = await qy(querys.PersonaByEmail, [(req.body.email).toLowerCase()]);
     if (existsEmail.length > 0) {
       throw new Error('Email en uso');
     }
 
     // Check if Persona exists
-    const existsPersona = await qy(Querys.PersonaById, [req.body.id]);
+    const existsPersona = await qy(querys.PersonaById, [req.body.id]);
     if (existsPersona.length === 0) {
       throw new Error('Persona NO existe');
     }
 
-    const persona = new Models.Persona({
+    const persona = new models.Persona({
       "id": req.body.id,
       "nombre": req.body.nombre,
       "apellido": req.body.apellido,
@@ -115,7 +117,7 @@ app.put('/persona', async (req, res) => {
       "alias": req.body.alias,
     });
 
-    const addPersona = await qy(Querys.PersonaUpdate, [
+    const addPersona = await qy(querys.PersonaUpdate, [
       persona.nombre, persona.apellido, (persona.email).toLowerCase(),
       persona.alias, persona.id
     ]);
@@ -131,26 +133,26 @@ app.delete('/persona/:id', async (req, res) => {
   try {
 
     // Check ID
-    Tools.PersonaTools.checkIDParam(req);
+    tools.PersonaTools.checkIDParam(req);
 
     // Check if Persona exists
-    const existsPersona = await qy(Querys.PersonaById, [req.params.id]);
+    const existsPersona = await qy(querys.PersonaById, [req.params.id]);
     if (existsPersona.length <= 0) {
       throw new Error('Persona NO existe');
     }
 
     // Check si la persona no debe libros
-    const constLibroEnPersona = await qy(Querys.PersonaConLibros, [req.params.id]);
+    const constLibroEnPersona = await qy(querys.PersonaConLibros, [req.params.id]);
     if (constLibroEnPersona.length > 0) {
       throw new Error('Persona debe LIBROS');
     }
 
-    const persona = new Models.Persona({
+    const persona = new models.Persona({
       "id": req.body.id,
       "activo": '0'
     });
 
-    const deletePersona = await qy(Querys.PersonaDelete, [
+    const deletePersona = await qy(querys.PersonaDelete, [
       req.params.id
     ]);
 
@@ -168,7 +170,7 @@ app.delete('/persona/:id', async (req, res) => {
 */
 app.get('/categorias', async (req, res) => {
   try {
-    const respuesta = await qy(Querys.Categorias);
+    const respuesta = await qy(querys.Categorias);
     res.send({ data: respuesta });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -178,7 +180,7 @@ app.get('/categorias', async (req, res) => {
 
 app.get('/categoria/:id', async (req, res) => {
   try {
-    const respuesta = await qy(Querys.CategoriaById, [req.params.id]);
+    const respuesta = await qy(querys.CategoriaById, [req.params.id]);
     res.send({ data: respuesta });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -190,21 +192,23 @@ app.post('/categoria', async (req, res) => {
   try {
 
     // Nombre mandatory
-    Tools.CategoriaTools.checkNombre(req);
+    tools.CategoriaTools.checkNombre(req);
 
     // Check if categoria is already saved
-    const exists = await qy(Querys.CategoriaByNombre, [req.body.nombre]);
+    const exists = await qy(querys.CategoriaByNombre, [req.body.nombre]);
     if (exists.length > 0) {
       throw new Error('Categoría ya existe');
     }
 
-    const categoria = new Models.Categoria({
+    const categoria = new models.Categoria({
       "nombre": req.body.nombre,
     });
 
-    const addCategoria = await qy(Querys.CategoriaADD, [
+    const addCategoria = await qy(querys.CategoriaADD, [
       categoria.nombre
     ]);
+
+    categoria.id = addCategoria.insertId;
     res.send(categoria);
 
   } catch (error) {
@@ -217,21 +221,21 @@ app.put('/categoria', async (req, res) => {
   try {
 
     // Check ID & EMAIL
-    await Tools.CategoriaTools.checkID(req);
-    await Tools.CategoriaTools.checkNombre(req);
+    await tools.CategoriaTools.checkID(req);
+    await tools.CategoriaTools.checkNombre(req);
 
     // Check if Categoria exists
-    const exists = await qy(Querys.CategoriaById, [req.body.id]);
+    const exists = await qy(querys.CategoriaById, [req.body.id]);
     if (exists.length === 0) {
       throw new Error('Categoria NO existe');
     }
 
-    const categoria = new Models.Categoria({
+    const categoria = new models.Categoria({
       "id": req.body.id,
       "nombre": req.body.nombre
     });
 
-    const addCategoria = await qy(Querys.CategoriaUpdate, [
+    const addCategoria = await qy(querys.CategoriaUpdate, [
       categoria.nombre, categoria.id
     ]);
     res.send(categoria);
@@ -246,17 +250,17 @@ app.delete('/categoria/:id', async (req, res) => {
   try {
 
     // Check ID
-    await Tools.CategoriaTools.checkID(req);
+    await tools.CategoriaTools.checkID(req);
 
     // Check if Categoria exists
-    const exists = await qy(Querys.CategoriaById, [req.params.id]);
+    const exists = await qy(querys.CategoriaById, [req.params.id]);
     if (exists.length === 0) {
       throw new Error('Categoria NO existe');
     }
 
     // Check si la categoria esta siendo usada en libros
     // await fn
-    const catEnLibro = await qy(Querys.CategoriaExistsEnLibro, [req.params.id]);
+    const catEnLibro = await qy(querys.CategoriaExistsEnLibro, [req.params.id]);
     if (catEnLibro.length > 0) {
       let nombres = '';
       catEnLibro.forEach(element => {
@@ -265,7 +269,7 @@ app.delete('/categoria/:id', async (req, res) => {
       throw new Error('Categoria EN USO EN: ' + nombres);
     }
 
-    const deleteCategoria = await qy(Querys.CategoriaDelete, [
+    const deleteCategoria = await qy(querys.CategoriaDelete, [
       req.params.id
     ]);
 
@@ -283,7 +287,7 @@ app.delete('/categoria/:id', async (req, res) => {
 */
 app.get('/libros', async (req, res) => {
   try {
-    const respuesta = await qy(Querys.Libros);
+    const respuesta = await qy(querys.Libros);
     res.send({ data: respuesta });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -293,7 +297,7 @@ app.get('/libros', async (req, res) => {
 
 app.get('/libro/:id', async (req, res) => {
   try {
-    const respuesta = await qy(Querys.LibroById, [req.params.id]);
+    const respuesta = await qy(querys.LibroById, [req.params.id]);
     res.send({ data: respuesta });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -305,31 +309,33 @@ app.post('/libro', async (req, res) => {
   try {
 
     // Nombre mandatory
-    Tools.LibroTools.checkNombre(req);
-    Tools.LibroTools.checkCategoria(req);
+    tools.LibroTools.checkNombre(req);
+    tools.LibroTools.checkCategoria(req);
 
     // Check if Libro is already saved
-    const exists = await qy(Querys.LibroByNombre, [req.body.nombre]);
+    const exists = await qy(querys.LibroByNombre, [req.body.nombre]);
     if (exists.length > 0) {
       throw new Error('Libro ya existe');
     }
 
     // Check que la categoria exista
-    const existsCategoria = await qy(Querys.CategoriaById, [req.body.categoria_id]);
+    const existsCategoria = await qy(querys.CategoriaById, [req.body.categoria_id]);
     if (existsCategoria.length <= 0) {
       throw new Error('Categoría NO existe');
     }
 
-    const libro = new Models.Libro({
+    const libro = new models.Libro({
       "nombre": req.body.nombre,
       "descripcion": req.body.descripcion,
       "categoria_id": req.body.categoria_id,
       "persona_id": req.body.persona_id ? req.body.persona_id : null,
     });
 
-    const addLibro = await qy(Querys.LibroADD, [
+    const addLibro = await qy(querys.LibroADD, [
       libro.nombre, libro.descripcion, libro.categoria_id, libro.persona_id
     ]);
+
+    libro.id = addLibro.insertId;
     res.send(libro);
 
   } catch (error) {
@@ -342,30 +348,30 @@ app.put('/libro', async (req, res) => {
   try {
 
     // Check ID & EMAIL
-    await Tools.LibroTools.checkID(req);
-    await Tools.LibroTools.checkNombre(req);
-    await Tools.LibroTools.checkCategoria(req);
+    await tools.LibroTools.checkID(req);
+    await tools.LibroTools.checkNombre(req);
+    await tools.LibroTools.checkCategoria(req);
 
     // Check if Libro exists
-    const exists = await qy(Querys.LibroById, [req.body.id]);
+    const exists = await qy(querys.LibroById, [req.body.id]);
     if (exists.length === 0) {
       throw new Error('Libro NO existe');
     }
 
     // Check que la categoria exista
-    const existsCategoria = await qy(Querys.CategoriaById, [req.body.categoria_id]);
+    const existsCategoria = await qy(querys.CategoriaById, [req.body.categoria_id]);
     if (existsCategoria.length === 0) {
       throw new Error('Categoría NO existe');
     }
 
-    const libro = new Models.Libro({
+    const libro = new models.Libro({
       "id": req.body.id,
       "nombre": req.body.nombre,
       "descripcion": req.body.descripcion,
       "categoria_id": req.body.categoria_id
     });
 
-    const addLibro = await qy(Querys.LibroUpdate, [
+    const addLibro = await qy(querys.LibroUpdate, [
       libro.nombre, libro.descripcion, libro.categoria_id, libro.id
     ]);
     res.send(libro);
@@ -380,10 +386,10 @@ app.delete('/libro/:id', async (req, res) => {
   try {
 
     // Check ID
-    await Tools.LibroTools.checkIDParam(req);
+    await tools.LibroTools.checkIDParam(req);
 
     // Check if Categoria exists
-    const exists = await qy(Querys.LibroById, [req.params.id]);
+    const exists = await qy(querys.LibroById, [req.params.id]);
     if (exists.length === 0) {
       throw new Error('Libro NO existe');
     }
@@ -393,7 +399,7 @@ app.delete('/libro/:id', async (req, res) => {
       throw new Error('Libro en uso');
     }
 
-    const deleteLibro = await qy(Querys.LibroDelete, [
+    const deleteLibro = await qy(querys.LibroDelete, [
       req.params.id
     ]);
 
