@@ -5,16 +5,6 @@ const util = require('util');
 const app = express();
 const port = 3000;
 app.use(express.json());
-app.use(express.urlencoded({
-  extended: true
-}));
-
-// var conexion = mysql.createConnection({
-//   host: 'wo46.wiroos.host',
-//   user: 'randazzo_tp',
-//   password: 'UTNgrupo13',
-//   database: 'randazzo_biblioteca',
-// });
 
 var conexion = mysql.createConnection({
   host: 'localhost',
@@ -29,9 +19,41 @@ conexion.connect((error) => {
 });
 
 const qy = util.promisify(conexion.query).bind(conexion);
-const querys = require('./querys.model');
-const tools = require('./check.common');
-const models = require('./models');
+
+/*
+-------------------------------------------
+  Querys Strings
+-------------------------------------------
+*/
+// Personas
+const personas = 'SELECT * FROM persona';
+const personaById = 'SELECT * FROM persona WHERE id=?';
+const personaByEmail = 'SELECT * FROM persona WHERE email=?';
+const personaByEmailAndId = 'SELECT * FROM persona WHERE email=? AND id <> ?';
+const personaADD = 'INSERT INTO persona(nombre, apellido, email, alias) VALUES (?,?,?,?)';
+const personaUpdate = 'UPDATE persona SET nombre=?,apellido=?,alias=? WHERE id=?';
+const personaDelete = 'DELETE FROM persona WHERE id=?';
+const personaConLibros = 'SELECT * FROM libro WHERE persona_id=?';
+
+// libros
+const libros = 'SELECT * FROM libro';
+const libroById = 'SELECT * FROM libro WHERE id=?';
+const libroByNombre = 'SELECT * FROM libro WHERE nombre=?';
+const libroADD = 'INSERT INTO libro(nombre, descripcion, categoria_id, persona_id) VALUE (?,?,?,?)';
+const libroADDSinPersona = 'INSERT INTO libro(nombre, descripcion, categoria_id) VALUE (?,?,?)';
+const libroUpdate = 'UPDATE libro SET descripcion=? WHERE id=?';
+const libroDelete = 'DELETE FROM libro WHERE id=?';
+const libroPrestar = 'UPDATE libro set persona_id=? WHERE id=?';
+const libroDevolver = 'UPDATE libro set persona_id=NULL WHERE id=?';
+
+// Categorias
+const categorias = 'SELECT * FROM categoria';
+const categoriaById = 'SELECT * FROM categoria WHERE id=?';
+const categoriaByNombre = 'SELECT * FROM categoria WHERE nombre=?';
+const categoriaADD = 'INSERT INTO categoria(nombre) VALUES (?)';
+const categoriaUpdate = 'UPDATE categoria SET nombre=? WHERE id=?';
+const categoriaDelete = 'DELETE FROM categoria WHERE id=?';
+const categoriaExistsEnLibro = 'SELECT * FROM libro WHERE categoria_id=?';
 
 /*
 -------------------------------------------
@@ -40,7 +62,7 @@ const models = require('./models');
 */
 app.get('/personas', async (req, res) => {
   try {
-    const respuesta = await qy(querys.Personas);
+    const respuesta = await qy(personas);
     res.send({ data: respuesta });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -50,7 +72,13 @@ app.get('/personas', async (req, res) => {
 
 app.get('/persona/:id', async (req, res) => {
   try {
-    const respuesta = await qy(querys.PersonaById, [req.params.id]);
+    const respuesta = await qy(personaById, [req.params.id]);
+
+    // Check persona existente
+    if (respuesta.length === 0) {
+      throw new Error('Persona inexistente');
+    }
+
     res.send({ data: respuesta });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -61,28 +89,22 @@ app.get('/persona/:id', async (req, res) => {
 app.post('/persona', async (req, res) => {
   try {
 
-    // Email mandatory
-    tools.PersonaTools.checkEmail(req);
+    // Check de los campos obligatorios
+    if (!req.body.nombre || !req.body.apellido || !req.body.alias || !req.body.email) {
+      throw new Error('Faltan datos');
+    }
 
-    // Check if email is in use
-    const exists = await qy(querys.PersonaByEmail, [(req.body.email).toLowerCase()]);
+    // Check si el email esta en uso
+    const exists = await qy(personaByEmail, [(req.body.email).toLowerCase()]);
     if (exists.length > 0) {
       throw new Error('Email en uso');
     }
 
-    const persona = new models.Persona({
-      "nombre": req.body.nombre,
-      "apellido": req.body.apellido,
-      "email": req.body.email,
-      "alias": req.body.alias
-    });
-
-    const addPersona = await qy(querys.PersonaADD, [
-      persona.nombre, persona.apellido, (persona.email).toLowerCase(), persona.alias
+    const add = await qy(personaADD, [
+      req.body.nombre, req.body.apellido, (req.body.email).toLowerCase(), req.body.alias
     ]);
 
-    persona.id = addPersona.insertId;
-    res.send(persona);
+    res.status(200).send({ 'Respuesta': 'Registro agregado: ' + add.insertId });
 
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -90,38 +112,43 @@ app.post('/persona', async (req, res) => {
   }
 });
 
-app.put('/persona', async (req, res) => {
+app.put('/persona/:id', async (req, res) => {
   try {
 
-    // Check ID & EMAIL
-    await tools.PersonaTools.checkID(req);
-    await tools.PersonaTools.checkEmail(req);
+    // Check ID
+    if (!req.params.id) {
+      throw new Error('Falta ID');
+    }
 
-    // Check if email is in use
-    const existsEmail = await qy(querys.PersonaByEmail, [(req.body.email).toLowerCase()]);
+    // Check email
+    if (!req.body.email) {
+      throw new Error('Falta EMAIL');
+    }
+
+    // Check si el email esta uso
+    const existsEmail = await qy(personaByEmailAndId, [(req.body.email).toLowerCase(), req.params.id]);
     if (existsEmail.length > 0) {
       throw new Error('Email en uso');
     }
 
-    // Check if Persona exists
-    const existsPersona = await qy(querys.PersonaById, [req.body.id]);
+    // Check si la persona existe
+    const existsPersona = await qy(personaById, [req.params.id]);
     if (existsPersona.length === 0) {
       throw new Error('Persona NO existe');
     }
 
-    const persona = new models.Persona({
-      "id": req.body.id,
-      "nombre": req.body.nombre,
-      "apellido": req.body.apellido,
-      "email": req.body.email,
-      "alias": req.body.alias,
-    });
+    // Check que no haya cambiado el email
+    const emailExist = existsPersona[0].email.toString();
+    if (emailExist !== req.body.email) {
+      throw new Error('No se puede modificar el email');
+    }
 
-    const addPersona = await qy(querys.PersonaUpdate, [
-      persona.nombre, persona.apellido, (persona.email).toLowerCase(),
-      persona.alias, persona.id
+    const modify = await qy(personaUpdate, [
+      req.body.nombre, req.body.apellido,
+      req.body.alias, req.params.id
     ]);
-    res.send(persona);
+
+    res.status(200).send({ 'Respuesta': 'Registro modificado' });
 
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -133,30 +160,27 @@ app.delete('/persona/:id', async (req, res) => {
   try {
 
     // Check ID
-    tools.PersonaTools.checkIDParam(req);
+    if (!req.params.id) {
+      throw new Error('Falta ID');
+    }
 
     // Check if Persona exists
-    const existsPersona = await qy(querys.PersonaById, [req.params.id]);
+    const existsPersona = await qy(personaById, [req.params.id]);
     if (existsPersona.length <= 0) {
       throw new Error('Persona NO existe');
     }
 
     // Check si la persona no debe libros
-    const constLibroEnPersona = await qy(querys.PersonaConLibros, [req.params.id]);
+    const constLibroEnPersona = await qy(personaConLibros, [req.params.id]);
     if (constLibroEnPersona.length > 0) {
       throw new Error('Persona debe LIBROS');
     }
 
-    const persona = new models.Persona({
-      "id": req.body.id,
-      "activo": '0'
-    });
-
-    const deletePersona = await qy(querys.PersonaDelete, [
+    const deletePersona = await qy(personaDelete, [
       req.params.id
     ]);
 
-    res.send({ msg: 'OK' });
+    res.send({ msg: 'Registro borrado' });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
     res.status(500).send({ 'ERROR': error.message });
@@ -170,7 +194,7 @@ app.delete('/persona/:id', async (req, res) => {
 */
 app.get('/categorias', async (req, res) => {
   try {
-    const respuesta = await qy(querys.Categorias);
+    const respuesta = await qy(categorias);
     res.send({ data: respuesta });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -180,7 +204,13 @@ app.get('/categorias', async (req, res) => {
 
 app.get('/categoria/:id', async (req, res) => {
   try {
-    const respuesta = await qy(querys.CategoriaById, [req.params.id]);
+    const respuesta = await qy(categoriaById, [req.params.id]);
+
+    // Check categoria existente
+    if (respuesta.length === 0) {
+      throw new Error('Categoria inexistente');
+    }
+
     res.send({ data: respuesta });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -191,54 +221,22 @@ app.get('/categoria/:id', async (req, res) => {
 app.post('/categoria', async (req, res) => {
   try {
 
-    // Nombre mandatory
-    tools.CategoriaTools.checkNombre(req);
+    // Nombre obligatorio
+    if (!req.body.nombre) {
+      throw new Error('Faltan datos');
+    }
 
     // Check if categoria is already saved
-    const exists = await qy(querys.CategoriaByNombre, [req.body.nombre]);
+    const exists = await qy(categoriaByNombre, [req.body.nombre.toString().toUpperCase()]);
     if (exists.length > 0) {
       throw new Error('Categoría ya existe');
     }
 
-    const categoria = new models.Categoria({
-      "nombre": req.body.nombre,
-    });
-
-    const addCategoria = await qy(querys.CategoriaADD, [
-      categoria.nombre
+    const addCategoria = await qy(categoriaADD, [
+      req.body.nombre.toString().toUpperCase()
     ]);
 
-    categoria.id = addCategoria.insertId;
-    res.send(categoria);
-
-  } catch (error) {
-    console.log("🚀 ~ error", error.message);
-    res.status(500).send({ 'ERROR': error.message });
-  }
-});
-
-app.put('/categoria', async (req, res) => {
-  try {
-
-    // Check ID & EMAIL
-    await tools.CategoriaTools.checkID(req);
-    await tools.CategoriaTools.checkNombre(req);
-
-    // Check if Categoria exists
-    const exists = await qy(querys.CategoriaById, [req.body.id]);
-    if (exists.length === 0) {
-      throw new Error('Categoria NO existe');
-    }
-
-    const categoria = new models.Categoria({
-      "id": req.body.id,
-      "nombre": req.body.nombre
-    });
-
-    const addCategoria = await qy(querys.CategoriaUpdate, [
-      categoria.nombre, categoria.id
-    ]);
-    res.send(categoria);
+    res.status(200).send({ 'Respuesta': 'Registro agregado: ' + addCategoria.insertId });
 
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -250,30 +248,31 @@ app.delete('/categoria/:id', async (req, res) => {
   try {
 
     // Check ID
-    await tools.CategoriaTools.checkID(req);
+    if (!req.params.id) {
+      throw new Error('Falta ID');
+    }
 
-    // Check if Categoria exists
-    const exists = await qy(querys.CategoriaById, [req.params.id]);
+    // Check si categoria existe
+    const exists = await qy(categoriaById, [req.params.id]);
     if (exists.length === 0) {
       throw new Error('Categoria NO existe');
     }
 
     // Check si la categoria esta siendo usada en libros
-    // await fn
-    const catEnLibro = await qy(querys.CategoriaExistsEnLibro, [req.params.id]);
+    const catEnLibro = await qy(categoriaExistsEnLibro, [req.params.id]);
     if (catEnLibro.length > 0) {
       let nombres = '';
       catEnLibro.forEach(element => {
         nombres = nombres.concat(element.nombre + ', ');
       });
-      throw new Error('Categoria EN USO EN: ' + nombres);
+      throw new Error('Categoria con libros asociados, no se puede eliminar. En: ' + nombres);
     }
 
-    const deleteCategoria = await qy(querys.CategoriaDelete, [
+    const deleteCategoria = await qy(categoriaDelete, [
       req.params.id
     ]);
 
-    res.send({ msg: 'OK' });
+    res.send({ msg: 'Registro borrado' });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
     res.status(500).send({ 'ERROR': error.message });
@@ -287,7 +286,7 @@ app.delete('/categoria/:id', async (req, res) => {
 */
 app.get('/libros', async (req, res) => {
   try {
-    const respuesta = await qy(querys.Libros);
+    const respuesta = await qy(libros);
     res.send({ data: respuesta });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -297,7 +296,16 @@ app.get('/libros', async (req, res) => {
 
 app.get('/libro/:id', async (req, res) => {
   try {
-    const respuesta = await qy(querys.LibroById, [req.params.id]);
+    // Check id
+    if (!req.params.id) {
+      throw new Error('Falta ID');
+    }
+
+    const respuesta = await qy(libroById, [req.params.id]);
+    if (respuesta.length <= 0) {
+      throw new Error('Registro inexistente');
+    }
+
     res.send({ data: respuesta });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -308,35 +316,75 @@ app.get('/libro/:id', async (req, res) => {
 app.post('/libro', async (req, res) => {
   try {
 
-    // Nombre mandatory
-    tools.LibroTools.checkNombre(req);
-    tools.LibroTools.checkCategoria(req);
+    // Nombre y categoria obligatorio
+    if (!req.body.nombre || !req.body.categoria_id) {
+      throw new Error('Faltan datos');
+    }
 
-    // Check if Libro is already saved
-    const exists = await qy(querys.LibroByNombre, [req.body.nombre]);
+    // Check si libro existe
+    const exists = await qy(libroByNombre, [req.body.nombre]);
     if (exists.length > 0) {
       throw new Error('Libro ya existe');
     }
 
     // Check que la categoria exista
-    const existsCategoria = await qy(querys.CategoriaById, [req.body.categoria_id]);
+    const existsCategoria = await qy(categoriaById, [req.body.categoria_id]);
     if (existsCategoria.length <= 0) {
       throw new Error('Categoría NO existe');
     }
 
-    const libro = new models.Libro({
-      "nombre": req.body.nombre,
-      "descripcion": req.body.descripcion,
-      "categoria_id": req.body.categoria_id,
-      "persona_id": req.body.persona_id ? req.body.persona_id : null,
-    });
+    // en caso de agregar persona, check si existe
+    if (req.body.persona_id && req.body.persona_id !== null) {
+      const existePersona = await qy(personaById, [req.body.persona_id]);
+      if (existePersona.length <= 0) {
+        throw new Error('Persona NO existe');
+      }
+    }
 
-    const addLibro = await qy(querys.LibroADD, [
-      libro.nombre, libro.descripcion, libro.categoria_id, libro.persona_id
+    let addLibro = null;
+    if (req.body.persona_id) {
+      addLibro = await qy(libroADD, [
+        req.body.nombre, req.body.descripcion, req.body.categoria_id, req.body.persona_id
+      ]);
+    } else {
+      addLibro = await qy(libroADDSinPersona, [
+        req.body.nombre, req.body.descripcion, req.body.categoria_id
+      ]);
+    }
+
+    res.status(200).send({ 'Respuesta': 'Registro agregado: ' + addLibro?.insertId });
+  } catch (error) {
+    console.log("🚀 ~ error", error.message);
+    res.status(500).send({ 'ERROR': error.message });
+  }
+});
+
+app.put('/libro/:id', async (req, res) => {
+  try {
+
+    // Check ID
+    if (!req.params.id) {
+      throw new Error('Falta ID');
+    }
+
+    // Check if Libro exists
+    const exists = await qy(libroById, [req.params.id]);
+    if (exists.length === 0) {
+      throw new Error('Libro NO existe');
+    }
+
+    // Check que SOLO haya cambiado la descripcion
+    const nombre = exists[0].nombre.toString();
+    const categoria_id = exists[0].categoria_id;
+    if (nombre !== req.body.nombre || categoria_id !== req.body.categoria_id) {
+      throw new Error('No se pueden modificar nombre/categoria');
+    }
+
+    const addLibro = await qy(libroUpdate, [
+      req.body.descripcion, req.params.id
     ]);
 
-    libro.id = addLibro.insertId;
-    res.send(libro);
+    res.status(200).send({ 'Respuesta': 'Registro modificado' });
 
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -344,37 +392,70 @@ app.post('/libro', async (req, res) => {
   }
 });
 
-app.put('/libro', async (req, res) => {
+app.put('/libro/prestar/:id', async (req, res) => {
   try {
+    // Check ID
+    if (!req.params.id) {
+      throw new Error('Falta ID');
+    }
 
-    // Check ID & EMAIL
-    await tools.LibroTools.checkID(req);
-    await tools.LibroTools.checkNombre(req);
-    await tools.LibroTools.checkCategoria(req);
+    // Check persona id
+    if (!req.body.persona_id) {
+      throw new Error('Falta persona id');
+    }
 
     // Check if Libro exists
-    const exists = await qy(querys.LibroById, [req.body.id]);
+    const exists = await qy(libroById, [req.params.id]);
     if (exists.length === 0) {
       throw new Error('Libro NO existe');
     }
 
-    // Check que la categoria exista
-    const existsCategoria = await qy(querys.CategoriaById, [req.body.categoria_id]);
-    if (existsCategoria.length === 0) {
-      throw new Error('Categoría NO existe');
+    // Check exista persona a quien prestar el libro
+    const existPersona = await qy(personaById, [req.body.persona_id]);
+    if (existPersona.length <= 0) {
+      throw new Error('Persona no existe');
     }
 
-    const libro = new models.Libro({
-      "id": req.body.id,
-      "nombre": req.body.nombre,
-      "descripcion": req.body.descripcion,
-      "categoria_id": req.body.categoria_id
-    });
+    // Check que el libro no este ya prestado
+    if (exists[0].persona_id !== null) {
+      throw new Error('Libro ya prestado');
+    }
 
-    const addLibro = await qy(querys.LibroUpdate, [
-      libro.nombre, libro.descripcion, libro.categoria_id, libro.id
+    const prestarLibro = await qy(libroPrestar, [
+      req.body.persona_id, req.params.id
     ]);
-    res.send(libro);
+
+    res.status(200).send({ 'Respuesta': 'Libro prestado' });
+  } catch (error) {
+    console.log("🚀 ~ error", error.message);
+    res.status(500).send({ 'ERROR': error.message });
+  }
+});
+
+
+app.put('/libro/devolver/:id', async (req, res) => {
+  try {
+    // Check ID
+    if (!req.params.id) {
+      throw new Error('Falta ID');
+    }
+
+    // Check if Libro exists
+    const exists = await qy(libroById, [req.params.id]);
+    if (exists.length === 0) {
+      throw new Error('Libro NO existe');
+    }
+
+    // Check que el libro este prestado
+    if (exists[0].persona_id === null) {
+      throw new Error('Libro NO prestado');
+    }
+
+    const devolverLibro = await qy(libroDevolver, [
+      req.params.id
+    ]);
+
+    res.status(200).send({ 'Respuesta': 'Libro devuelto' });
 
   } catch (error) {
     console.log("🚀 ~ error", error.message);
@@ -386,24 +467,26 @@ app.delete('/libro/:id', async (req, res) => {
   try {
 
     // Check ID
-    await tools.LibroTools.checkIDParam(req);
+    if (!req.params.id) {
+      throw new Error('Falta ID');
+    }
 
-    // Check if Categoria exists
-    const exists = await qy(querys.LibroById, [req.params.id]);
+    // Check que exista libro
+    const exists = await qy(libroById, [req.params.id]);
     if (exists.length === 0) {
       throw new Error('Libro NO existe');
     }
 
-    // Check if Libro is beeing used
+    // Check que el libro NO este prestado
     if (exists[0].persona_id) {
-      throw new Error('Libro en uso');
+      throw new Error('Ese libro esta prestado no se puede borrar');
     }
 
-    const deleteLibro = await qy(querys.LibroDelete, [
+    const deleteLibro = await qy(libroDelete, [
       req.params.id
     ]);
 
-    res.send({ msg: 'OK' });
+    res.send({ msg: 'Registro borrado' });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
     res.status(500).send({ 'ERROR': error.message });
