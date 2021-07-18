@@ -1,10 +1,12 @@
 const express = require('express');
 const mysql = require('mysql');
 const util = require('util');
+const cors = require('cors');
 
 const app = express();
 const port = 3000;
 app.use(express.json());
+app.use(cors());
 
 var conexion = mysql.createConnection({
   host: 'localhost',
@@ -45,13 +47,13 @@ const libroUpdate = 'UPDATE libro SET descripcion=? WHERE id=?';
 const libroDelete = 'DELETE FROM libro WHERE id=?';
 const libroPrestar = 'UPDATE libro set persona_id=? WHERE id=?';
 const libroDevolver = 'UPDATE libro set persona_id=NULL WHERE id=?';
+const libroByPersona = 'SELECT * FROM libro where persona_id=?'
 
 // Categorias
 const categorias = 'SELECT * FROM categoria';
 const categoriaById = 'SELECT * FROM categoria WHERE id=?';
 const categoriaByNombre = 'SELECT * FROM categoria WHERE nombre=?';
 const categoriaADD = 'INSERT INTO categoria(nombre) VALUES (?)';
-const categoriaUpdate = 'UPDATE categoria SET nombre=? WHERE id=?';
 const categoriaDelete = 'DELETE FROM categoria WHERE id=?';
 const categoriaExistsEnLibro = 'SELECT * FROM libro WHERE categoria_id=?';
 
@@ -63,7 +65,7 @@ const categoriaExistsEnLibro = 'SELECT * FROM libro WHERE categoria_id=?';
 app.get('/personas', async (req, res) => {
   try {
     const respuesta = await qy(personas);
-    res.send({ data: respuesta });
+    res.send(respuesta);
   } catch (error) {
     console.log("🚀 ~ error", error.message);
     res.status(500).send({ 'ERROR': error.message });
@@ -487,6 +489,22 @@ app.delete('/libro/:id', async (req, res) => {
     ]);
 
     res.send({ msg: 'Registro borrado' });
+  } catch (error) {
+    console.log("🚀 ~ error", error.message);
+    res.status(500).send({ 'ERROR': error.message });
+  }
+});
+
+app.get('/librosByPersona/:persona_id', async (req, res) => {
+  try {
+    // Check id
+    if (!req.params.persona_id) {
+      throw new Error('Falta ID');
+    }
+
+    const respuesta = await qy(libroByPersona, [req.params.persona_id]);
+
+    res.send(respuesta);
   } catch (error) {
     console.log("🚀 ~ error", error.message);
     res.status(500).send({ 'ERROR': error.message });
