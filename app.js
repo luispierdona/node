@@ -110,7 +110,7 @@ app.post('/persona', async (req, res) => {
 
   } catch (error) {
     console.log("🚀 ~ error", error.message);
-    res.status(500).send({ 'ERROR': error.message });
+    res.status(500).send( error.message );
   }
 });
 
@@ -185,7 +185,7 @@ app.delete('/persona/:id', async (req, res) => {
     res.send({ msg: 'Registro borrado' });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
-    res.status(500).send({ 'ERROR': error.message });
+    res.status(500).send(error.message);
   }
 });
 
