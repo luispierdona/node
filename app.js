@@ -48,6 +48,7 @@ const libroDelete = 'DELETE FROM libro WHERE id=?';
 const libroPrestar = 'UPDATE libro set persona_id=? WHERE id=?';
 const libroDevolver = 'UPDATE libro set persona_id=NULL WHERE id=?';
 const libroByPersona = 'SELECT * FROM libro where persona_id=?'
+const librosByCategoria = 'SELECT * FROM libro where categoria_id=?'
 
 // Categorias
 const categorias = 'SELECT * FROM categoria';
@@ -503,6 +504,22 @@ app.get('/librosByPersona/:persona_id', async (req, res) => {
     }
 
     const respuesta = await qy(libroByPersona, [req.params.persona_id]);
+
+    res.send(respuesta);
+  } catch (error) {
+    console.log("🚀 ~ error", error.message);
+    res.status(500).send({ 'ERROR': error.message });
+  }
+});
+
+app.get('/librosByCategoria/:categoria_id', async (req, res) => {
+  try {
+    // Check id
+    if (!req.params.categoria_id) {
+      throw new Error('Falta ID');
+    }
+
+    const respuesta = await qy(librosByCategoria, [req.params.categoria_id]);
 
     res.send(respuesta);
   } catch (error) {
