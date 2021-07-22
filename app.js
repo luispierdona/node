@@ -47,8 +47,8 @@ const libroUpdate = 'UPDATE libro SET descripcion=? WHERE id=?';
 const libroDelete = 'DELETE FROM libro WHERE id=?';
 const libroPrestar = 'UPDATE libro set persona_id=? WHERE id=?';
 const libroDevolver = 'UPDATE libro set persona_id=NULL WHERE id=?';
-const libroByPersona = 'SELECT * FROM libro where persona_id=?'
-const librosByCategoria = 'SELECT * FROM libro where categoria_id=?'
+const libroByPersona = 'SELECT * FROM libro where persona_id=?';
+const librosByCategoria = 'SELECT * FROM libro where categoria_id=?';
 
 // Categorias
 const categorias = 'SELECT * FROM categoria';
