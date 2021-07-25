@@ -155,7 +155,7 @@ app.put('/persona/:id', async (req, res) => {
 
   } catch (error) {
     console.log("🚀 ~ error", error.message);
-    res.status(500).send({ 'ERROR': error.message });
+    res.status(500).send( error.message );
   }
 });
 
@@ -198,7 +198,7 @@ app.delete('/persona/:id', async (req, res) => {
 app.get('/categorias', async (req, res) => {
   try {
     const respuesta = await qy(categorias);
-    res.send({ data: respuesta });
+    res.send(respuesta);
   } catch (error) {
     console.log("🚀 ~ error", error.message);
     res.status(500).send({ 'ERROR': error.message });
@@ -243,7 +243,7 @@ app.post('/categoria', async (req, res) => {
 
   } catch (error) {
     console.log("🚀 ~ error", error.message);
-    res.status(500).send({ 'ERROR': error.message });
+    res.status(500).send(error.message);
   }
 });
 
@@ -278,7 +278,7 @@ app.delete('/categoria/:id', async (req, res) => {
     res.send({ msg: 'Registro borrado' });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
-    res.status(500).send({ 'ERROR': error.message });
+    res.status(500).send(error.message);
   }
 });
 
@@ -290,7 +290,7 @@ app.delete('/categoria/:id', async (req, res) => {
 app.get('/libros', async (req, res) => {
   try {
     const respuesta = await qy(libros);
-    res.send({ data: respuesta });
+    res.send(respuesta);
   } catch (error) {
     console.log("🚀 ~ error", error.message);
     res.status(500).send({ 'ERROR': error.message });
