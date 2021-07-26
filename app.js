@@ -44,6 +44,7 @@ const libroByNombre = 'SELECT * FROM libro WHERE nombre=?';
 const libroADD = 'INSERT INTO libro(nombre, descripcion, categoria_id, persona_id) VALUE (?,?,?,?)';
 const libroADDSinPersona = 'INSERT INTO libro(nombre, descripcion, categoria_id) VALUE (?,?,?)';
 const libroUpdate = 'UPDATE libro SET descripcion=? WHERE id=?';
+const libroUpdateSetPersona = 'UPDATE libro SET descripcion=?,persona_id=null WHERE id=?';
 const libroDelete = 'DELETE FROM libro WHERE id=?';
 const libroPrestar = 'UPDATE libro set persona_id=? WHERE id=?';
 const libroDevolver = 'UPDATE libro set persona_id=NULL WHERE id=?';
@@ -382,12 +383,14 @@ app.post('/libro', async (req, res) => {
     res.status(200).send({ 'Respuesta': 'Registro agregado: ' + addLibro?.insertId });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
-    res.status(500).send({ 'ERROR': error.message });
+    res.status(500).send(error.message);
   }
 });
 
 app.put('/libro/:id', async (req, res) => {
   try {
+
+    let URL = libroUpdate;
 
     // Check ID
     if (!req.params.id) {
@@ -407,7 +410,11 @@ app.put('/libro/:id', async (req, res) => {
       throw new Error('No se pueden modificar nombre/categoria');
     }
 
-    const addLibro = await qy(libroUpdate, [
+    if (req.body.persona_id === "null") {
+      URL = libroUpdateSetPersona;
+    }
+
+    const addLibro = await qy(URL, [
       req.body.descripcion, req.params.id
     ]);
 
@@ -415,7 +422,7 @@ app.put('/libro/:id', async (req, res) => {
 
   } catch (error) {
     console.log("🚀 ~ error", error.message);
-    res.status(500).send({ 'ERROR': error.message });
+    res.status(500).send(error.message);
   }
 });
 
@@ -455,7 +462,7 @@ app.put('/libro/prestar/:id', async (req, res) => {
     res.status(200).send({ 'Respuesta': 'Libro prestado' });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
-    res.status(500).send({ 'ERROR': error.message });
+    res.status(500).send(error.message);
   }
 });
 
@@ -486,7 +493,7 @@ app.put('/libro/devolver/:id', async (req, res) => {
 
   } catch (error) {
     console.log("🚀 ~ error", error.message);
-    res.status(500).send({ 'ERROR': error.message });
+    res.status(500).send(error.message);
   }
 });
 
@@ -516,7 +523,7 @@ app.delete('/libro/:id', async (req, res) => {
     res.send({ msg: 'Registro borrado' });
   } catch (error) {
     console.log("🚀 ~ error", error.message);
-    res.status(500).send({ 'ERROR': error.message });
+    res.status(500).send(error.message);
   }
 });
 
