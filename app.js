@@ -297,6 +297,30 @@ app.get('/libros', async (req, res) => {
   }
 });
 
+app.get('/librosExtended', async (req, res) => {
+  try {
+    let respuesta = await qy(libros);
+
+    for (const element of respuesta) {
+      // Add categoria
+      const categoria = await qy(categoriaById, [element.categoria_id]);
+      if (categoria[0]){
+        element.categoria = {...categoria[0]};
+      }
+      // Add persona
+      const persona = await qy(personaById, [element.persona_id]);
+      if (persona[0]){
+        element.persona = {...persona[0]};
+      }
+    }
+
+    res.send(respuesta);
+  } catch (error) {
+    console.log("🚀 ~ error", error.message);
+    res.status(500).send({ 'ERROR': error.message });
+  }
+});
+
 app.get('/libro/:id', async (req, res) => {
   try {
     // Check id
